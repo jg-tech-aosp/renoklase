@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="lv">
+<head>
+  <meta charset="UTF-8">
+  <title>Renoklase — pieslēdzas</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #080c18;
+      color: #d0daf0;
+      font-family: 'Courier New', monospace;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .spinner {
+      width: 28px; height: 28px;
+      border: 1px solid #1a2540;
+      border-top-color: #3d7fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    p { font-size: 12px; color: #5a7090; letter-spacing: 0.08em; }
+    .err { color: #ff4060; }
+  </style>
+</head>
+<body>
+  <div class="spinner" id="spin"></div>
+  <p id="msg">Autentificē...</p>
+
+  <script>
+    // IMPORTANT: Replace this with your actual deployed Worker URL
+    // e.g. https://renoklase-proxy.YOUR-SUBDOMAIN.workers.dev
+    const WORKER_URL = 'REPLACE_WITH_YOUR_WORKER_URL'
+
+    ;(async () => {
+      const msg = document.getElementById('msg')
+      const spin = document.getElementById('spin')
+
+      const params = new URLSearchParams(window.location.search)
+      const code    = params.get('code')
+      const state   = params.get('state')
+      const error   = params.get('error')
+
+      if (error) {
+        spin.style.display = 'none'
+        msg.className = 'err'
+        msg.textContent = 'Pieteikšanās atteikta: ' + error
+        return
+      }
+
+      if (!code) {
+        spin.style.display = 'none'
+        msg.className = 'err'
+        msg.textContent = 'Nav autorizācijas koda'
+        return
+      }
+
+      const sessionData = JSON.parse(sessionStorage.getItem('renoklase_pkce') || '{}')
+      if (!sessionData.codeVerifier || sessionData.state !== state) {
+        spin.style.display = 'none'
+        msg.className = 'err'
+        msg.textContent = 'Sesijas kļūda — mēģini vēlreiz'
+        return
+      }
+
+      try {
+        const redirectUri = window.location.origin + '/redirect.html'
+
+        const body = new URLSearchParams({
+          grant_type:    'authorization_code',
+          code,
+          redirect_uri:  redirectUri,
+          client_id:     'web',
+          code_verifier: sessionData.codeVerifier,
+        })
+
+        const res = await fetch(`${WORKER_URL}/worker/token`, {
+          method: 'POST',
+          body: body.toString(),
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        })
+
+        const data = await res.json()
+        if (!data.access_token) throw new Error(data.error || 'Nav tokena')
+
+        // Store token
+        localStorage.setItem('renoklase_token', data.access_token)
+        localStorage.setItem('renoklase_expires', Date.now() + data.expires_in * 1000)
+        sessionStorage.removeItem('renoklase_pkce')
+
+        msg.textContent = 'Veiksmīgi!'
+        window.location.href = '/'
+      } catch (e) {
+        spin.style.display = 'none'
+        msg.className = 'err'
+        msg.textContent = 'Kļūda: ' + e.message
+      }
+    })()
+  </script>
+</body>
+</html>

@@ -1,0 +1,1228 @@
+<!DOCTYPE html>
+<html lang="lv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Renoklase</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    /* ── Variables ───────────────────────────────────────────────────────── */
+    :root {
+      --bg:         #07090f;
+      --bg2:        #0c1020;
+      --surface:    #0f1628;
+      --border:     #161f36;
+      --border2:    #1e2d4a;
+      --blue:       #3a7bff;
+      --blue-glow:  #3a7bff30;
+      --blue-dim:   #152448;
+      --cyan:       #00cfff;
+      --green:      #00e090;
+      --red:        #ff3d5a;
+      --yellow:     #ffc94d;
+      --purple:     #a06fff;
+      --text:       #c8d4ee;
+      --text-mid:   #7890b8;
+      --text-dim:   #3a4f70;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Mono', monospace;
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── PKCE utils (inlined) ────────────────────────────────────────────── */
+    /* see <script> below */
+
+    /* ═══════════════════════════════════════════════════════════════════════
+       LOGIN SCREEN
+    ═══════════════════════════════════════════════════════════════════════ */
+    #login-screen {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* animated grid bg */
+    #login-screen::before {
+      content: '';
+      position: absolute;
+      inset: -50%;
+      background-image:
+        linear-gradient(var(--border) 1px, transparent 1px),
+        linear-gradient(90deg, var(--border) 1px, transparent 1px);
+      background-size: 48px 48px;
+      opacity: 0.4;
+      animation: gridDrift 30s linear infinite;
+      pointer-events: none;
+    }
+    @keyframes gridDrift {
+      from { transform: translate(0, 0); }
+      to   { transform: translate(48px, 48px); }
+    }
+
+    #login-screen::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 55% 50% at 50% 40%, #0d1f5030 0%, transparent 70%),
+        radial-gradient(ellipse 30% 40% at 20% 80%, #3a7bff0a 0%, transparent 60%);
+      pointer-events: none;
+    }
+
+    .login-card {
+      position: relative;
+      z-index: 1;
+      text-align: center;
+      padding: 64px 56px 56px;
+      border: 1px solid var(--border2);
+      background: var(--bg2);
+      box-shadow: 0 0 80px #3a7bff08, inset 0 1px 0 #ffffff08;
+      animation: fadeUp 0.5s ease both;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .login-eyebrow {
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.45em;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      margin-bottom: 32px;
+    }
+
+    .login-wordmark {
+      font-family: 'Syne', sans-serif;
+      font-size: 56px;
+      font-weight: 800;
+      line-height: 1;
+      color: #fff;
+      letter-spacing: -0.03em;
+      margin-bottom: 4px;
+    }
+
+    .login-wordmark .accent { color: var(--blue); }
+
+    .login-tagline {
+      font-size: 11px;
+      color: var(--text-dim);
+      letter-spacing: 0.06em;
+      margin-bottom: 48px;
+    }
+
+    .login-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--blue);
+      color: #fff;
+      font-family: 'DM Mono', monospace;
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 13px 28px;
+      border: none;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+
+    .login-btn::before {
+      content: '';
+      position: absolute;
+      top: 0; left: -100%;
+      width: 100%; height: 100%;
+      background: linear-gradient(90deg, transparent, #ffffff18, transparent);
+      transition: left 0.4s;
+    }
+
+    .login-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 28px var(--blue-glow); }
+    .login-btn:hover::before { left: 100%; }
+    .login-btn:active { transform: translateY(0); }
+
+    .login-note {
+      margin-top: 20px;
+      font-size: 10px;
+      color: var(--text-dim);
+      letter-spacing: 0.04em;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════
+       APP SHELL
+    ═══════════════════════════════════════════════════════════════════════ */
+    #app { display: none; min-height: 100vh; }
+
+    /* ── Topbar ───────────────────────────── */
+    .topbar {
+      height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; z-index: 100;
+    }
+
+    .wordmark {
+      font-family: 'Syne', sans-serif;
+      font-size: 16px;
+      font-weight: 800;
+      color: #fff;
+      letter-spacing: -0.03em;
+    }
+
+    .wordmark .accent { color: var(--blue); }
+
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .user-chip {
+      font-size: 11px;
+      color: var(--text-mid);
+      letter-spacing: 0.03em;
+    }
+
+    .topbar-btn {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      background: none;
+      border: 1px solid var(--border2);
+      padding: 4px 10px;
+      cursor: pointer;
+      transition: color 0.15s, border-color 0.15s;
+    }
+
+    .topbar-btn:hover { color: var(--red); border-color: var(--red)40; }
+
+    /* ── Nav ──────────────────────────────── */
+    .nav {
+      display: flex;
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+      padding: 0 20px;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+
+    .nav::-webkit-scrollbar { display: none; }
+
+    .nav-btn {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      padding: 12px 14px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: color 0.15s, border-color 0.15s;
+    }
+
+    .nav-btn:hover { color: var(--text-mid); }
+
+    .nav-btn.active { color: var(--blue); border-bottom-color: var(--blue); }
+
+    .nav-dot {
+      width: 5px; height: 5px;
+      border-radius: 50%;
+      background: var(--blue);
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    .nav-btn.active .nav-dot { opacity: 1; }
+
+    /* ── Content ──────────────────────────── */
+    .content {
+      padding: 24px 20px;
+      max-width: 960px;
+    }
+
+    .panel { display: none; }
+    .panel.active {
+      display: block;
+      animation: fadeIn 0.2s ease both;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── Page header ──────────────────────── */
+    .page-header {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .page-title {
+      font-family: 'Syne', sans-serif;
+      font-size: 18px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .page-sub {
+      font-size: 10px;
+      color: var(--text-dim);
+      letter-spacing: 0.06em;
+    }
+
+    /* ── States ───────────────────────────── */
+    .state-loading {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--text-dim);
+      font-size: 11px;
+      letter-spacing: 0.05em;
+      padding: 40px 0;
+    }
+
+    .spinner {
+      width: 14px; height: 14px;
+      border: 1px solid var(--border2);
+      border-top-color: var(--blue);
+      border-radius: 50%;
+      animation: spin 0.65s linear infinite;
+      flex-shrink: 0;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .state-empty {
+      color: var(--text-dim);
+      font-size: 11px;
+      letter-spacing: 0.05em;
+      padding: 40px 0;
+    }
+
+    .state-error {
+      font-size: 11px;
+      line-height: 1.7;
+      color: var(--red);
+      background: #ff3d5a0a;
+      border: 1px solid #ff3d5a20;
+      padding: 14px 16px;
+      margin-bottom: 12px;
+    }
+
+    .state-error code {
+      display: block;
+      margin-top: 8px;
+      color: var(--text-dim);
+      font-size: 10px;
+      opacity: 0.8;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════
+       DIARY
+    ═══════════════════════════════════════════════════════════════════════ */
+    .week-nav {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .week-arrow {
+      width: 30px; height: 30px;
+      display: flex; align-items: center; justify-content: center;
+      background: var(--surface);
+      border: 1px solid var(--border2);
+      color: var(--text-mid);
+      font-size: 16px;
+      cursor: pointer;
+      transition: all 0.15s;
+      flex-shrink: 0;
+    }
+
+    .week-arrow:hover { border-color: var(--blue); color: var(--blue); }
+
+    .week-label {
+      font-family: 'Syne', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      color: #fff;
+      flex: 1;
+    }
+
+    .week-today {
+      font-size: 10px;
+      letter-spacing: 0.07em;
+      color: var(--text-dim);
+      background: none;
+      border: 1px solid var(--border2);
+      font-family: 'DM Mono', monospace;
+      padding: 4px 10px;
+      cursor: pointer;
+      transition: all 0.15s;
+      text-transform: uppercase;
+    }
+
+    .week-today:hover { color: var(--cyan); border-color: var(--cyan)50; }
+
+    .day-block { margin-bottom: 20px; }
+
+    .day-header {
+      font-size: 10px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin-bottom: 6px;
+      padding: 0 4px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .day-header::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    .lesson-card {
+      display: grid;
+      grid-template-columns: 20px 1fr auto;
+      gap: 10px;
+      align-items: start;
+      padding: 11px 14px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 2px solid transparent;
+      margin-bottom: 3px;
+      transition: border-color 0.15s;
+    }
+
+    .lesson-card:hover { border-left-color: var(--blue-dim); }
+    .lesson-card.has-hw { border-left-color: var(--blue)60; }
+
+    .lesson-num {
+      font-size: 10px;
+      color: var(--text-dim);
+      padding-top: 2px;
+    }
+
+    .lesson-name {
+      font-family: 'Syne', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      color: #fff;
+      margin-bottom: 3px;
+    }
+
+    .lesson-theme {
+      font-size: 11px;
+      color: var(--text-mid);
+      margin-bottom: 4px;
+      font-style: italic;
+    }
+
+    .lesson-hw {
+      font-size: 11px;
+      color: var(--cyan);
+      line-height: 1.5;
+    }
+
+    .lesson-hw::before { content: '→ '; opacity: 0.5; }
+
+    /* ═══════════════════════════════════════════════════════════════════════
+       GRADES
+    ═══════════════════════════════════════════════════════════════════════ */
+    .grade-card {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+      align-items: start;
+      padding: 14px 16px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      margin-bottom: 4px;
+      cursor: pointer;
+      transition: border-color 0.15s;
+    }
+
+    .grade-card:hover { border-color: var(--border2); }
+    .grade-card.expanded { border-color: var(--blue-dim); }
+
+    .grade-subject {
+      font-family: 'Syne', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      color: #fff;
+      margin-bottom: 3px;
+    }
+
+    .grade-meta {
+      font-size: 10px;
+      color: var(--text-dim);
+      letter-spacing: 0.03em;
+    }
+
+    .grade-value {
+      font-family: 'Syne', sans-serif;
+      font-size: 24px;
+      font-weight: 800;
+      line-height: 1;
+      text-align: right;
+      flex-shrink: 0;
+    }
+
+    .gv-high   { color: var(--green); }
+    .gv-mid    { color: var(--yellow); }
+    .gv-low    { color: var(--red); }
+    .gv-none   { color: var(--text-dim); font-size: 14px; }
+
+    .grade-expand {
+      display: none;
+      grid-column: 1 / -1;
+      padding-top: 10px;
+      margin-top: 10px;
+      border-top: 1px solid var(--border);
+    }
+
+    .grade-card.expanded .grade-expand { display: block; }
+
+    .stats-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+
+    .pill {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      padding: 4px 10px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+    }
+
+    .pill-label { color: var(--text-dim); }
+    .pill-val   { color: var(--cyan); font-weight: 500; }
+    .pill-rank  { color: var(--yellow); font-weight: 500; }
+
+    .grade-desc {
+      font-size: 11px;
+      color: var(--text-mid);
+      line-height: 1.6;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════
+       HOMEWORK
+    ═══════════════════════════════════════════════════════════════════════ */
+    .hw-card {
+      padding: 13px 16px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 2px solid var(--blue)50;
+      margin-bottom: 4px;
+    }
+
+    .hw-subject {
+      font-family: 'Syne', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      color: #fff;
+      margin-bottom: 5px;
+    }
+
+    .hw-text {
+      font-size: 11px;
+      color: var(--text-mid);
+      line-height: 1.6;
+    }
+
+    .hw-footer {
+      margin-top: 6px;
+      font-size: 10px;
+      color: var(--text-dim);
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════
+       MAIL
+    ═══════════════════════════════════════════════════════════════════════ */
+    .mail-item {
+      padding: 13px 16px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      margin-bottom: 4px;
+      cursor: pointer;
+      transition: border-color 0.15s;
+    }
+
+    .mail-item:hover { border-color: var(--border2); }
+    .mail-item.unread { border-left: 2px solid var(--blue); }
+    .mail-item.open { border-color: var(--border2); }
+
+    .mail-subject {
+      font-family: 'Syne', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      color: #fff;
+      margin-bottom: 3px;
+    }
+
+    .mail-from { font-size: 10px; color: var(--text-dim); }
+
+    .mail-body {
+      display: none;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+      font-size: 11px;
+      color: var(--text-mid);
+      line-height: 1.7;
+    }
+
+    .mail-item.open .mail-body { display: block; }
+
+    /* ═══════════════════════════════════════════════════════════════════════
+       DEV EXPLORER
+    ═══════════════════════════════════════════════════════════════════════ */
+    .explorer-bar {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .explorer-input {
+      flex: 1;
+      background: var(--surface);
+      border: 1px solid var(--border2);
+      color: var(--text);
+      font-family: 'DM Mono', monospace;
+      font-size: 12px;
+      padding: 9px 12px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    .explorer-input:focus { border-color: var(--blue); }
+    .explorer-input::placeholder { color: var(--text-dim); }
+
+    .explorer-go {
+      background: var(--blue-dim);
+      border: 1px solid var(--blue)50;
+      color: var(--blue);
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      font-weight: 500;
+      padding: 9px 18px;
+      cursor: pointer;
+      letter-spacing: 0.07em;
+      transition: all 0.15s;
+    }
+
+    .explorer-go:hover { background: var(--blue); color: #fff; }
+
+    .explorer-suggestions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 14px;
+    }
+
+    .sug {
+      font-size: 10px;
+      color: var(--text-dim);
+      background: var(--bg);
+      border: 1px solid var(--border);
+      padding: 3px 9px;
+      cursor: pointer;
+      letter-spacing: 0.03em;
+      transition: all 0.15s;
+    }
+
+    .sug:hover { color: var(--cyan); border-color: var(--cyan)40; }
+
+    .explorer-out {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      padding: 14px;
+      font-size: 10px;
+      color: var(--cyan);
+      white-space: pre-wrap;
+      overflow: auto;
+      max-height: 520px;
+      line-height: 1.6;
+      letter-spacing: 0.02em;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ════════════════ LOGIN ════════════════ -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-eyebrow">Neoficiāls klients</div>
+    <div class="login-wordmark">reno<span class="accent">klase</span></div>
+    <div class="login-tagline">e-klase bez BS &nbsp;·&nbsp; tumšs režīms &nbsp;·&nbsp; bez paywalla</div>
+    <button class="login-btn" id="login-btn" onclick="startLogin()">
+      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3"/>
+      </svg>
+      Pieteikties ar e-klase
+    </button>
+    <div class="login-note">Parole netiek nodota — pieslēdzas caur e-klase oficiālo pieteikšanās lapu</div>
+  </div>
+</div>
+
+<!-- ════════════════ APP ════════════════ -->
+<div id="app">
+  <div class="topbar">
+    <div class="wordmark">reno<span class="accent">klase</span></div>
+    <div class="topbar-right">
+      <span class="user-chip" id="user-chip"></span>
+      <button class="topbar-btn" onclick="logout()">Iziet</button>
+    </div>
+  </div>
+
+  <div class="nav">
+    <button class="nav-btn active" data-panel="diary"    onclick="switchTab(this)"><span class="nav-dot"></span>Dienasgrāmata</button>
+    <button class="nav-btn"        data-panel="grades"   onclick="switchTab(this)"><span class="nav-dot"></span>Vērtējumi</button>
+    <button class="nav-btn"        data-panel="homework" onclick="switchTab(this)"><span class="nav-dot"></span>Mājas darbi</button>
+    <button class="nav-btn"        data-panel="mail"     onclick="switchTab(this)"><span class="nav-dot"></span>Ziņojumi</button>
+    <button class="nav-btn"        data-panel="dev"      onclick="switchTab(this)"><span class="nav-dot"></span>Dev</button>
+  </div>
+
+  <div class="content">
+
+    <!-- DIARY -->
+    <div class="panel active" id="panel-diary">
+      <div class="week-nav">
+        <button class="week-arrow" onclick="shiftWeek(-1)">‹</button>
+        <div class="week-label" id="week-label">—</div>
+        <button class="week-today" onclick="goToday()">Šodien</button>
+        <button class="week-arrow" onclick="shiftWeek(1)">›</button>
+      </div>
+      <div id="diary-body"><div class="state-loading"><div class="spinner"></div>Ielādē dienasgrāmatu...</div></div>
+    </div>
+
+    <!-- GRADES -->
+    <div class="panel" id="panel-grades">
+      <div class="page-header">
+        <div class="page-title">Vērtējumi</div>
+        <div class="page-sub" id="grades-sub"></div>
+      </div>
+      <div id="grades-body"><div class="state-loading"><div class="spinner"></div>Ielādē vērtējumus...</div></div>
+    </div>
+
+    <!-- HOMEWORK -->
+    <div class="panel" id="panel-homework">
+      <div class="page-header">
+        <div class="page-title">Mājas darbi</div>
+        <div class="page-sub" id="hw-sub"></div>
+      </div>
+      <div id="hw-body"><div class="state-loading"><div class="spinner"></div>Ielādē mājas darbus...</div></div>
+    </div>
+
+    <!-- MAIL -->
+    <div class="panel" id="panel-mail">
+      <div class="page-header">
+        <div class="page-title">Ziņojumi</div>
+      </div>
+      <div id="mail-body"><div class="state-loading"><div class="spinner"></div>Ielādē ziņojumus...</div></div>
+    </div>
+
+    <!-- DEV -->
+    <div class="panel" id="panel-dev">
+      <div class="page-header">
+        <div class="page-title">API Explorer</div>
+        <div class="page-sub">endpoint atklāšanas rīks</div>
+      </div>
+      <div class="explorer-bar">
+        <input class="explorer-input" id="exp-input" placeholder="diary?from=2026-03-10&to=2026-03-16" onkeydown="if(e.key==='Enter')explore()"/>
+        <button class="explorer-go" onclick="explore()">GET →</button>
+      </div>
+      <div class="explorer-suggestions">
+        <span class="sug" onclick="setSug(this)">diary?from=2026-03-10&amp;to=2026-03-16</span>
+        <span class="sug" onclick="setSug(this)">student/evaluations</span>
+        <span class="sug" onclick="setSug(this)">student/homework</span>
+        <span class="sug" onclick="setSug(this)">student/info</span>
+        <span class="sug" onclick="setSug(this)">student/summary</span>
+        <span class="sug" onclick="setSug(this)">family/mail/folder-message-ids/standardType_fmft_inbox</span>
+      </div>
+      <div class="explorer-out" id="exp-out">// Raksti endpoint ceļu augšā un nospied GET
+// Piemērs: diary?from=2026-03-10&amp;to=2026-03-16</div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════════════════════
+// CONFIG — replace with your deployed Worker URL
+// ════════════════════════════════════════════════════════════════════════════
+const WORKER_URL = 'REPLACE_WITH_YOUR_WORKER_URL'
+// e.g. 'https://renoklase-proxy.your-subdomain.workers.dev'
+
+// ════════════════════════════════════════════════════════════════════════════
+// PKCE
+// ════════════════════════════════════════════════════════════════════════════
+function b64url(buf) {
+  return btoa(String.fromCharCode(...new Uint8Array(buf)))
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
+}
+
+async function genPKCE() {
+  const verifier = b64url(crypto.getRandomValues(new Uint8Array(32)))
+  const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier))
+  return { verifier, challenge: b64url(hash) }
+}
+
+function randomHex(n) {
+  return [...crypto.getRandomValues(new Uint8Array(n))].map(b => b.toString(16).padStart(2,'0')).join('')
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// AUTH
+// ════════════════════════════════════════════════════════════════════════════
+async function startLogin() {
+  const btn = document.getElementById('login-btn')
+  btn.textContent = 'Sagatavojas...'
+  btn.disabled = true
+
+  const { verifier, challenge } = await genPKCE()
+  const state = randomHex(16)
+  const nonce = randomHex(32)
+  const redirectUri = window.location.origin + '/redirect.html'
+
+  sessionStorage.setItem('renoklase_pkce', JSON.stringify({ codeVerifier: verifier, state }))
+
+  const params = new URLSearchParams({
+    scope:                 'openid',
+    response_type:         'code',
+    client_id:             'web',
+    redirect_uri:          redirectUri,
+    state,
+    nonce,
+    ui_locales:            'lv',
+    code_challenge:        challenge,
+    code_challenge_method: 'S256',
+  })
+
+  window.location.href = `https://auth.e-klase.lv/realms/family/protocol/openid-connect/auth?${params}`
+}
+
+function getToken() {
+  const token = localStorage.getItem('renoklase_token')
+  const exp   = parseInt(localStorage.getItem('renoklase_expires') || '0')
+  if (!token || Date.now() > exp) return null
+  return token
+}
+
+function logout() {
+  localStorage.removeItem('renoklase_token')
+  localStorage.removeItem('renoklase_expires')
+  document.getElementById('app').style.display = 'none'
+  document.getElementById('login-screen').style.display = 'flex'
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// API
+// ════════════════════════════════════════════════════════════════════════════
+async function apiGet(path) {
+  const token = getToken()
+  if (!token) { logout(); return null }
+  const r = await fetch(`${WORKER_URL}/worker/api/${path}`, {
+    headers: { Authorization: `Bearer ${token}` }
+  })
+  return r.json()
+}
+
+async function apiPost(path, body) {
+  const token = getToken()
+  if (!token) { logout(); return null }
+  const r = await fetch(`${WORKER_URL}/worker/api/${path}`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  })
+  return r.json()
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// BOOT
+// ════════════════════════════════════════════════════════════════════════════
+function boot() {
+  const token = getToken()
+  if (token) {
+    document.getElementById('login-screen').style.display = 'none'
+    document.getElementById('app').style.display = 'block'
+    loadAll()
+  }
+}
+
+function loadAll() {
+  loadMe()
+  loadDiary()
+  loadGrades()
+  loadHomework()
+  loadMail()
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// USER INFO
+// ════════════════════════════════════════════════════════════════════════════
+async function loadMe() {
+  // Try a few likely paths — update once you find the right one via Dev tab
+  for (const path of ['student/info', 'user/info', 'student/profile', 'profile']) {
+    try {
+      const d = await apiGet(path)
+      if (d && !d.error && (d.firstName || d.name || d.displayName || d.username)) {
+        const name = d.firstName && d.lastName
+          ? `${d.firstName} ${d.lastName}`
+          : d.name || d.displayName || d.username
+        document.getElementById('user-chip').textContent = name
+        return
+      }
+    } catch {}
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// DIARY
+// ════════════════════════════════════════════════════════════════════════════
+let diaryDate = new Date()
+
+function getWeekBounds(d) {
+  const day = d.getDay() || 7
+  const mon = new Date(d); mon.setDate(d.getDate() - day + 1)
+  const sun = new Date(mon); sun.setDate(mon.getDate() + 6)
+  return { mon, sun }
+}
+
+function isoDate(d) { return d.toISOString().split('T')[0] }
+
+function shiftWeek(dir) {
+  diaryDate = new Date(diaryDate)
+  diaryDate.setDate(diaryDate.getDate() + dir * 7)
+  loadDiary()
+}
+
+function goToday() {
+  diaryDate = new Date()
+  loadDiary()
+}
+
+async function loadDiary() {
+  const el = document.getElementById('diary-body')
+  const { mon, sun } = getWeekBounds(diaryDate)
+
+  document.getElementById('week-label').textContent =
+    `${fmtShort(mon)} – ${fmtShort(sun)}`
+
+  el.innerHTML = loading('Ielādē...')
+
+  // Use the confirmed diary endpoint format
+  const data = await apiGet(`diary?from=${isoDate(mon)}&to=${isoDate(sun)}`)
+
+  if (!data) return
+  if (data.error) { el.innerHTML = errBox(data, 'diary?from=...&to=...'); return }
+
+  const days = Array.isArray(data) ? data
+    : data.days || data.lessonDays || data.schedule || data.entries || []
+
+  if (!days.length) { el.innerHTML = '<div class="state-empty">Nav stundu šajā nedēļā</div>'; return }
+
+  el.innerHTML = days.map(day => {
+    const lessons = day.lessons || day.lessonList || []
+    const dateStr = day.date || day.lessonDate || ''
+    return `
+      <div class="day-block">
+        <div class="day-header">${fmtFull(dateStr)}</div>
+        ${lessons.length ? lessons.map(l => {
+          const subject = l.lesson || l.disciplineName || l.journalName || l.subject || '—'
+          const theme   = l.theme || l.lessonTheme || ''
+          const hw      = l.homework || []
+          const hwText  = hw.map(h => stripHtml(h.info || h.task?.text || h.text || '')).filter(Boolean)
+          return `
+            <div class="lesson-card ${hwText.length ? 'has-hw' : ''}">
+              <div class="lesson-num">${l.index || l.lessonNumberInDiary || '·'}</div>
+              <div>
+                <div class="lesson-name">${subject}</div>
+                ${theme ? `<div class="lesson-theme">${stripHtml(theme)}</div>` : ''}
+                ${hwText.map(t => `<div class="lesson-hw">${t}</div>`).join('')}
+              </div>
+              ${l.grade ? `<div class="grade-value ${gClass(l.grade)}">${l.grade}</div>` : ''}
+            </div>
+          `
+        }).join('') : '<div class="state-empty" style="padding:12px 0 4px">Nav stundu</div>'}
+      </div>
+    `
+  }).join('')
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// GRADES
+// ════════════════════════════════════════════════════════════════════════════
+async function loadGrades() {
+  const el = document.getElementById('grades-body')
+  const data = await apiGet('student/evaluations')
+
+  if (!data) return
+  if (data.error) { el.innerHTML = errBox(data, 'student/evaluations'); return }
+
+  const items = Array.isArray(data) ? data
+    : data.evaluations || data.grades || data.items || []
+
+  document.getElementById('grades-sub').textContent = `${items.length} vērtējumi`
+
+  if (!items.length) { el.innerHTML = '<div class="state-empty">Nav vērtējumu</div>'; return }
+
+  // Sort newest first
+  items.sort((a, b) => {
+    const da = a.lessonDate || a.date || ''
+    const db = b.lessonDate || b.date || ''
+    return db.localeCompare(da)
+  })
+
+  el.innerHTML = items.map((item, i) => {
+    const g       = item.grade || item.evaluation || item.mark || item.value || '—'
+    const subject = item.disciplineName || item.subject || item.lesson?.disciplineName || '—'
+    const date    = item.lessonDate || item.date || item.lesson?.lessonDate || ''
+    const typName = item.type?.name || item.typeName || ''
+    const testId  = item.testId || item.id || item.evaluationId || ''
+    const stats   = item.statistics || {}
+
+    return `
+      <div class="grade-card" id="gc-${i}" onclick="toggleGrade(${i}, '${testId}')">
+        <div>
+          <div class="grade-subject">${subject}</div>
+          <div class="grade-meta">${date ? fmtFull(date) : ''}${typName ? ' · ' + typName : ''}</div>
+        </div>
+        <div class="grade-value ${gClass(g)}">${g}</div>
+
+        ${stats.studentPlace || stats.averageClassEvaluation ? `
+          <div class="stats-pills" style="margin-top:10px">
+            ${stats.studentPlace ? `<div class="pill"><span class="pill-label">vieta</span><span class="pill-rank">#${stats.studentPlace}</span></div>` : ''}
+            ${stats.averageClassEvaluation ? `<div class="pill"><span class="pill-label">vid.</span><span class="pill-val">${stats.averageClassEvaluation}</span></div>` : ''}
+          </div>
+        ` : ''}
+
+        <div class="grade-expand" id="ge-${i}">
+          <div class="state-loading"><div class="spinner"></div>Ielādē...</div>
+        </div>
+      </div>
+    `
+  }).join('')
+}
+
+async function toggleGrade(i, testId) {
+  const card = document.getElementById(`gc-${i}`)
+  const expand = document.getElementById(`ge-${i}`)
+  if (!expand) return
+
+  card.classList.toggle('expanded')
+  if (!card.classList.contains('expanded')) return
+  if (expand.dataset.loaded) return
+
+  expand.dataset.loaded = '1'
+  if (!testId) { expand.innerHTML = '<div class="state-empty">Nav ID</div>'; return }
+
+  const data = await apiGet(`evaluations/${testId}`)
+  if (!data || data.error) {
+    expand.innerHTML = errBox(data, `evaluations/${testId}`)
+    return
+  }
+
+  const stats  = data.statistics || {}
+  const lesson = data.lesson || {}
+  const desc   = lesson.lessonSubject?.text ? stripHtml(lesson.lessonSubject.text) : ''
+  const author = lesson.creation?.authorName || ''
+
+  expand.innerHTML = `
+    ${desc ? `<div class="grade-desc" style="margin-bottom:10px">${desc}</div>` : ''}
+    <div class="stats-pills">
+      ${stats.studentPlace != null ? `<div class="pill"><span class="pill-label">vieta klasē</span><span class="pill-rank">#${stats.studentPlace}</span></div>` : ''}
+      ${stats.averageClassEvaluation ? `<div class="pill"><span class="pill-label">klases vidējais</span><span class="pill-val">${stats.averageClassEvaluation}</span></div>` : ''}
+      ${stats.indexOfStudentEvaluation != null ? `<div class="pill"><span class="pill-label">indekss</span><span class="pill-val">${stats.indexOfStudentEvaluation}</span></div>` : ''}
+    </div>
+    ${author ? `<div style="margin-top:8px;font-size:10px;color:var(--text-dim)">Skolotājs: ${author}</div>` : ''}
+  `
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// HOMEWORK
+// ════════════════════════════════════════════════════════════════════════════
+async function loadHomework() {
+  const el = document.getElementById('hw-body')
+  const data = await apiGet('student/homework')
+
+  if (!data) return
+  if (data.error) { el.innerHTML = errBox(data, 'student/homework'); return }
+
+  const items = Array.isArray(data) ? data
+    : data.homework || data.tasks || data.items || []
+
+  document.getElementById('hw-sub').textContent = `${items.length} uzdevumi`
+  if (!items.length) { el.innerHTML = '<div class="state-empty">Nav mājas darbu</div>'; return }
+
+  // Group by date, sort ascending
+  const byDate = {}
+  items.forEach(hw => {
+    const d = (hw.lessonDate || hw.date || '').split('T')[0]
+    if (!byDate[d]) byDate[d] = []
+    byDate[d].push(hw)
+  })
+
+  el.innerHTML = Object.entries(byDate)
+    .sort(([a],[b]) => a.localeCompare(b))
+    .map(([date, hws]) => `
+      <div class="day-block">
+        <div class="day-header">${fmtFull(date)}</div>
+        ${hws.map(hw => {
+          const subject = hw.journalName || hw.disciplineName || hw.subject || '—'
+          const text    = stripHtml(hw.task?.text || hw.text || hw.info || hw.description || '')
+          const teacher = hw.lastModification?.authorName || hw.authorName || ''
+          return `
+            <div class="hw-card">
+              <div class="hw-subject">${subject}</div>
+              ${text ? `<div class="hw-text">${text}</div>` : ''}
+              ${teacher ? `<div class="hw-footer">Skolotājs: ${teacher}</div>` : ''}
+            </div>
+          `
+        }).join('')}
+      </div>
+    `).join('')
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// MAIL
+// ════════════════════════════════════════════════════════════════════════════
+async function loadMail() {
+  const el = document.getElementById('mail-body')
+
+  const ids = await apiGet('family/mail/folder-message-ids/standardType_fmft_inbox')
+  if (!ids || ids.error) { el.innerHTML = errBox(ids, 'family/mail/folder-message-ids/...'); return }
+
+  const idList = Array.isArray(ids) ? ids : ids.messageIds || ids.ids || []
+  if (!idList.length) { el.innerHTML = '<div class="state-empty">Nav ziņojumu</div>'; return }
+
+  const msgs = await apiPost('family/mail/messages', { messageIds: idList.slice(0, 25) })
+  if (!msgs || msgs.error) { el.innerHTML = errBox(msgs, 'family/mail/messages'); return }
+
+  const list = Array.isArray(msgs) ? msgs : msgs.messages || msgs.items || []
+
+  el.innerHTML = list.map((m, i) => `
+    <div class="mail-item ${m.status === 'unread' ? 'unread' : ''}" onclick="this.classList.toggle('open')">
+      <div class="mail-subject">${m.subject || '(bez tēmas)'}</div>
+      <div class="mail-from">${m.authorName || '—'} · ${m.timeCreated ? fmtFull(m.timeCreated) : ''}</div>
+      <div class="mail-body">${m.body || m.content || m.text || '(tukšs)'}</div>
+    </div>
+  `).join('')
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// DEV EXPLORER
+// ════════════════════════════════════════════════════════════════════════════
+async function explore() {
+  const path = document.getElementById('exp-input').value.trim()
+  const out  = document.getElementById('exp-out')
+  if (!path) return
+  out.textContent = '// Fetching ' + path + ' ...'
+  try {
+    const data = await apiGet(path)
+    out.textContent = JSON.stringify(data, null, 2)
+  } catch (e) {
+    out.textContent = '// Error: ' + e.message
+  }
+}
+
+function setSug(el) {
+  document.getElementById('exp-input').value = el.textContent
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// TABS
+// ════════════════════════════════════════════════════════════════════════════
+function switchTab(btn) {
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'))
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'))
+  btn.classList.add('active')
+  document.getElementById('panel-' + btn.dataset.panel).classList.add('active')
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// HELPERS
+// ════════════════════════════════════════════════════════════════════════════
+function gClass(g) {
+  const n = parseFloat(String(g).replace(',', '.'))
+  if (isNaN(n)) return 'gv-none'
+  if (n >= 8) return 'gv-high'
+  if (n >= 5) return 'gv-mid'
+  return 'gv-low'
+}
+
+function stripHtml(html) {
+  if (!html) return ''
+  return html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+}
+
+function fmtShort(d) {
+  return d.toLocaleDateString('lv-LV', { day: 'numeric', month: 'short' })
+}
+
+function fmtFull(str) {
+  if (!str) return ''
+  try {
+    return new Date(str).toLocaleDateString('lv-LV', { weekday: 'short', day: 'numeric', month: 'long' })
+  } catch { return str }
+}
+
+function loading(msg) {
+  return `<div class="state-loading"><div class="spinner"></div>${msg}</div>`
+}
+
+function errBox(data, hint) {
+  const detail = data?.detail ? '\n' + JSON.stringify(data.detail, null, 2) : ''
+  return `<div class="state-error">
+    Endpoint nav atrasts vai atgrieza kļūdu.<br>
+    Pamēģini atrast pareizo ceļu Dev tabā: <strong>${hint}</strong>
+    ${detail ? `<code>${detail}</code>` : ''}
+  </div>`
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+boot()
+</script>
+</body>
+</html>
