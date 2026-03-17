@@ -694,14 +694,14 @@
   <div class="login-card">
     <div class="login-eyebrow">Neoficiāls klients</div>
     <div class="login-wordmark">reno<span class="accent">klase</span></div>
-    <div class="login-tagline">E-klase bez muļķībām &nbsp;·&nbsp; Tumšais režīms &nbsp;·&nbsp; Bez ģimenes komplekta</div>
+    <div class="login-tagline">E-Klase bez muļķībām &nbsp;·&nbsp; Tumšais režīms &nbsp;·&nbsp; Bez paywall</div>
     <button class="login-btn" id="login-btn" onclick="startLogin()">
       <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
         <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3"/>
       </svg>
-      Pieteikties ar E-klasi
+      Pieteikties ar E-Klasi
     </button>
-    <div class="login-note">Parole netiek nodota — pieslēdzas caur E-klases oficiālo pieteikšanās lapu</div>
+    <div class="login-note">Parole netiek nodota — pieslēdzas caur E-Klases oficiālo pieteikšanās lapu</div>
   </div>
 </div>
 
@@ -795,51 +795,61 @@ const WORKER_URL = 'REPLACE_WITH_YOUR_WORKER_URL'
 // e.g. 'https://renoklase-proxy.your-subdomain.workers.dev'
 
 // ════════════════════════════════════════════════════════════════════════════
-// PKCE
-// ════════════════════════════════════════════════════════════════════════════
-function b64url(buf) {
-  return btoa(String.fromCharCode(...new Uint8Array(buf)))
-    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
-}
-
-async function genPKCE() {
-  const verifier = b64url(crypto.getRandomValues(new Uint8Array(32)))
-  const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier))
-  return { verifier, challenge: b64url(hash) }
-}
-
-function randomHex(n) {
-  return [...crypto.getRandomValues(new Uint8Array(n))].map(b => b.toString(16).padStart(2,'0')).join('')
-}
-
-// ════════════════════════════════════════════════════════════════════════════
 // AUTH
 // ════════════════════════════════════════════════════════════════════════════
-async function startLogin() {
+function startLogin() {
   const btn = document.getElementById('login-btn')
-  btn.textContent = 'Sagatavojas...'
+  btn.textContent = 'Atver pieteikšanos...'
   btn.disabled = true
 
-  const { verifier, challenge } = await genPKCE()
-  const state = randomHex(16)
-  const nonce = randomHex(32)
-  const redirectUri = window.location.origin + '/redirect.html'
-
-  sessionStorage.setItem('renoklase_pkce', JSON.stringify({ codeVerifier: verifier, state }))
-
-  const params = new URLSearchParams({
-    scope:                 'openid',
-    response_type:         'code',
-    client_id:             'web',
-    redirect_uri:          redirectUri,
-    state,
-    nonce,
-    ui_locales:            'lv',
-    code_challenge:        challenge,
-    code_challenge_method: 'S256',
+  // Listen for token via postMessage (popup flow)
+  window.addEventListener('message', function handler(e) {
+    if (e.data?.type !== 'RENOKLASE_TOKEN') return
+    window.removeEventListener('message', handler)
+    clearInterval(window._hashCheck)
+    storeToken(e.data.token, e.data.expires || 86400)
+    btn.textContent = 'Pieteikties ar e-klase'
+    btn.disabled = false
+    boot()
   })
 
-  window.location.href = `https://auth.e-klase.lv/realms/family/protocol/openid-connect/auth?${params}`
+  // Also check URL hash (fallback if popup was blocked and we did a redirect instead)
+  window._hashCheck = setInterval(function() {
+    const hash = window.location.hash
+    if (hash.includes('token=')) {
+      clearInterval(window._hashCheck)
+      const p = new URLSearchParams(hash.slice(1))
+      const token = decodeURIComponent(p.get('token') || '')
+      if (token) {
+        storeToken(token, parseInt(p.get('expires') || '86400'))
+        history.replaceState(null, '', window.location.pathname)
+        btn.textContent = 'Pieteikties ar e-klase'
+        btn.disabled = false
+        boot()
+      }
+    }
+    if (hash.includes('error=')) {
+      clearInterval(window._hashCheck)
+      history.replaceState(null, '', window.location.pathname)
+      btn.textContent = 'Pieteikties ar e-klase'
+      btn.disabled = false
+      alert('Pieteikšanās kļūda — mēģini vēlreiz')
+    }
+  }, 400)
+
+  // Open e-klase login through Worker proxy as a popup
+  const loginUrl = `${WORKER_URL}/proxy/login`
+  const popup = window.open(loginUrl, 'eklase_login', 'width=520,height=680,left=200,top=80')
+  if (!popup) {
+    // Popup blocked — fall back to full redirect
+    clearInterval(window._hashCheck)
+    window.location.href = loginUrl
+  }
+}
+
+function storeToken(token, expiresIn) {
+  localStorage.setItem('renoklase_token', token)
+  localStorage.setItem('renoklase_expires', Date.now() + expiresIn * 1000)
 }
 
 function getToken() {
@@ -862,7 +872,7 @@ function logout() {
 async function apiGet(path) {
   const token = getToken()
   if (!token) { logout(); return null }
-  const r = await fetch(`${WORKER_URL}/worker/api/${path}`, {
+  const r = await fetch(`${WORKER_URL}/api/${path}`, {
     headers: { Authorization: `Bearer ${token}` }
   })
   return r.json()
@@ -871,7 +881,7 @@ async function apiGet(path) {
 async function apiPost(path, body) {
   const token = getToken()
   if (!token) { logout(); return null }
-  const r = await fetch(`${WORKER_URL}/worker/api/${path}`, {
+  const r = await fetch(`${WORKER_URL}/api/${path}`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
