@@ -1,2 +1,2 @@
 # renoklase
-Trešās partijas web client E-klasei.
+izglītības sistēmas var iet nahuj, viņiem nav publiskots API un nav iespējams izveidot klientu bez tā. Dievs, svētī Latviju.
